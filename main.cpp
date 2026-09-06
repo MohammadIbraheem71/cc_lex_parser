@@ -344,6 +344,8 @@ class lexer{
                     col++;
                 }
             }
+
+            pos = to;
         }
     public:
         lexer(const std::string &source){

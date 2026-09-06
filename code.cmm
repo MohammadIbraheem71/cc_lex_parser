@@ -1,0 +1,6 @@
+int sum(int a, int b){
+         return a + b;
+   }
+// compute result
+index = sum(index, 1);
+index = 5 @ 3; // shud be an error
