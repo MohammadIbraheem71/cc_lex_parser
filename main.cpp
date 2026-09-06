@@ -352,4 +352,101 @@ class lexer{
             line = 1;
             col = 1;
         }
+
+        token next_token(){
+            while (true){
+                if (pos >= (int)buffer.size()){
+                    return {TOK_EOF, "", line, col};
+                }
+
+                int start_pos = pos;
+                int start_line = line;
+
+                int start_col = col;
+
+                state current_state = S_START;
+
+                int last_accepting_pos = -1;
+                state last_accepting_state = S_START;
+                int scan_pos = pos;
+
+                while (scan_pos < (int)buffer.size()){
+                    char c = buffer[scan_pos];
+                    char_type ctype = classify_char(c);
+
+                    int next = table[current_state][ctype];
+
+                    // there is some invalid transition that
+                    // isnt defined
+                    // this happened due to some error
+                    if (next == -1){
+                        break;
+                    }
+
+                    current_state = (state)next;
+
+                    scan_pos++;
+
+                    // if current state is acecpting
+                    // then we record it
+                    // this is done to match the longest accepting state
+                    if (is_accepting[current_state]){
+                        last_accepting_pos = scan_pos;
+                        last_accepting_state = current_state;
+                    }
+                }
+
+                if (last_accepting_pos == -1){
+                    // no accepting state was found, this means the character at
+                    // start_pos is invalid, so we return an error token
+                    char invalid_char = buffer[start_pos];
+                    std::cerr<<"error: invalid character at line "<<line<<", col "<<col<<": '"<<invalid_char<<"'"<<std::endl;
+                    advance(start_pos, start_pos + 1);
+                } else {
+                    // we have found an accepting state, so we return the token
+                    // the "retract" functionality also needs to be implemented here
+                    // well it is done automatically due to the way we are scanning the input stream
+                    std::string lexeme = buffer.substr(start_pos, last_accepting_pos - start_pos);
+                    token_type type = accepting_token[last_accepting_state];
+                    advance(start_pos, last_accepting_pos);
+
+                    if (type == TOK_WHITESPACE || type == TOK_COMMENT){
+                        continue;  // skip whitespace and comments
+                    }
+
+                    // if the identifier is a keyword, change its type to TOK_KEYWORD
+                    if (type == TOK_IDENTIFIER && (keywords.count(lexeme) > 0)){
+                        type = TOK_KEYWORD;
+                    }
+
+                    return token{type, lexeme, start_line, start_col};
+                }
+            }
+        }
 };
+
+
+int main(){
+    std::ifstream file("code.cmm"); // cmm stands for c--
+
+    if (!file.is_open()){
+        std::cerr<<"error: could not open file"<<std::endl;
+        return 1;
+    }
+
+    std::stringstream ss;
+    ss << file.rdbuf();
+    std::string source = ss.str();
+
+    build_transition_table();
+    lexer lex_parser(source);
+
+    while (true){
+        token t = lex_parser.next_token();
+        if (t.type == TOK_EOF){
+            break;
+        }
+        std::cout<<"token: "<<get_token_name(t.type)<<" lexeme: '"<<t.lexeme<<"' line: "<<t.line<<" col: "<<t.column<<std::endl;
+
+    }
+}
